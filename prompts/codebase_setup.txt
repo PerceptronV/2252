@@ -1,0 +1,690 @@
+╭─── Claude Code v2.1.126 ─────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│                Welcome back Vincent!               │ started                 │
+│                                                    │ ✔ Run /init to create … │
+│                       ▐▛███▜▌                      │ ─────────────────────── │
+│                      ▝▜█████▛▘                     │ What's new              │
+│                        ▘▘ ▝▝                       │ The `/model` picker no… │
+│   Opus 4.7 · Claude Max · yiding@waddlelabs.ai's   │ - Added `claude projec… │
+│   Organization                                     │ `--dangerously-skip-pe… │
+│               ~/Desktop/Research/2252              │ /release-notes for more │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+❯ I am hoping to study different algorithms for graph partitioning. Please help 
+   me set up the codebase skeleton for this project that is modular and         
+  plug-and-play across three axes: dataset, algorithm, and evals. A dataset is, 
+   abstractly, a tuple of (graph, target partitioning). An algorithm takes in a 
+   graph, a target number of partitions, and produces a partitioning. An eval   
+  takes in a graph, a predicted partitioning, and a target partitioning, and    
+  produces a real number. Please set up the repo so that src/data contains the  
+  base dataset class (and later, variations, such as various forms of the       
+  stochastic block model, lfr, karate club, cora), src/algorithms contains the  
+  algorithm base class (and later variations such as standard spectral          
+  clustering, Cheeger sweep cut, etc), and src/evals contains the eval base     
+  class (and later variations such as conductance and adjusted rand index). In  
+  src/core, write an experiment runner that takes in experiment YAML configs    
+  from /configs (these configs specify all experiment hparams and should be     
+  interopable across the three modular axes of dataset, algorithm, eval) as a   
+  single source of truth and runs them, storing results appropriately in        
+  /results/<random_run_uuid>. Each run should store all its run metadata for    
+  future comparison.                                                            
+
+  Read 4 files, listed 1 directory (ctrl+o to expand)
+
+⏺ The repo is small — I have a clear picture. Let me also peek at the existing
+  spectral embedding's interfaces to understand the conventions in play, then
+  ask the user a couple of design questions before finalizing the plan.
+
+⏺ I have enough understanding of the existing codebase. Before finalizing the
+  plan, I want to clarify a few key design decisions.
+
+⏺ User answered Claude's questions:
+  ⎿  · What should be the canonical graph representation passed between dataset 
+     → algorithm → eval? → Custom Graph dataclass (Recommended)
+     · How should the project be packaged for imports? → pyproject.toml + 
+     editable install (Recommended)
+     · Should the existing core/spectral_embedding.py move into the new layout? 
+     → Move to src/algorithms/_spectral.py as a shared utility (Recommended)
+     · Should each experiment run a single eval or a list of evals? → List of 
+     evals (Recommended)
+
+⏺ All four recommendations accepted. Writing the plan now.
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ Plan is written. Calling ExitPlanMode for review.
+
+⏺ User approved Claude's plan
+  ⎿  Plan saved to: ~/.claude/plans/i-am-hoping-to-mutable-yao.md · /plan to 
+     edit
+     Graph Partitioning Research Skeleton
+
+     Context
+
+     You are starting a CS 2252 graph partitioning study (NeurIPS 2026
+     submission per docs/main.tex) and want to compare many algorithms across
+     many datasets and metrics. The repo currently contains a single ad-hoc
+     utility (core/spectral_embedding.py) and no scaffolding for structured
+     experiments.
+
+     This plan creates a modular, plug-and-play skeleton along three axes —
+     dataset, algorithm, eval — driven by YAML configs as the single source of
+     truth, with results written to UUID-stamped run directories so future
+     comparisons are tractable. Today only the base classes and the runner are
+     wired up; concrete datasets (SBM, LFR, Karate, Cora), concrete algorithms
+     (spectral, Cheeger sweep cut), and concrete evals (conductance, ARI) land
+     later by subclassing and registering.
+
+     Design decisions confirmed via AskUserQuestion: Graph dataclass;
+     pyproject.toml + editable install; move existing core/spectral_embedding.py
+      into src/algorithms/_spectral.py; list of evals per run.
+
+     Repository Layout (target)
+
+     2252/
+     ├── configs/
+     │   └── example.yaml                    # commented template config
+     ├── src/
+     │   ├── __init__.py
+     │   ├── core/
+     │   │   ├── __init__.py
+     │   │   ├── graph.py                    # Graph dataclass
+     │   │   ├── registry.py                 # name -> class registries +
+     decorators
+     │   │   ├── config.py                   # YAML loader / config schema
+     │   │   ├── runner.py                   # ExperimentRunner
+     │   │   └── results.py                  # run-directory writer / metadata
+     capture
+     │   ├── data/
+     │   │   ├── __init__.py
+     │   │   └── base.py                     # Dataset ABC
+     │   ├── algorithms/
+     │   │   ├── __init__.py
+     │   │   ├── base.py                     # Algorithm ABC
+     │   │   └── _spectral.py                # moved from
+     core/spectral_embedding.py
+     │   └── evals/
+     │       ├── __init__.py
+     │       └── base.py                     # Eval ABC
+     ├── scripts/
+     │   └── run.py                          # CLI: python scripts/run.py
+     configs/example.yaml
+     ├── results/                            # gitignored output root
+     │   └── .gitkeep
+     ├── pyproject.toml                      # src layout, editable install
+     ├── .gitignore                          # extended to ignore results/
+     ├── docs/                               # unchanged
+     └── prompts/                            # unchanged
+
+     The old top-level core/ directory goes away once spectral_embedding.py is
+     moved.
+
+     Core Abstractions
+
+     src/core/graph.py — Graph dataclass
+
+     @dataclass(frozen=True)
+     class Graph:
+         adjacency: sp.csr_matrix          # shape (n, n), symmetric, zero 
+     diagonal
+         num_nodes: int
+         node_features: np.ndarray | None = None   # shape (n, d), optional 
+     (Cora etc.)
+         name: str | None = None                   # human-readable label
+
+     Frozen so it's safe to pass between dataset → algorithm → eval. A
+     __post_init__ validates that adjacency is square and matches num_nodes.
+
+     src/data/base.py — Dataset ABC
+
+     class Dataset(ABC):
+         @abstractmethod
+         def load(self) -> tuple[Graph, np.ndarray]:
+             """Return (graph, target_partition). target_partition has shape 
+     (n,) of int labels."""
+         @property
+         @abstractmethod
+         def num_clusters(self) -> int: ...
+         name: str   # set by @register_dataset
+
+     Subclasses take their hyperparameters via __init__(**params) so they can be
+      constructed from config.
+
+     src/algorithms/base.py — Algorithm ABC
+
+     class Algorithm(ABC):
+         @abstractmethod
+         def fit_predict(self, graph: Graph, k: int) -> np.ndarray:
+             """Return predicted labels of shape (n,)."""
+         name: str
+
+     src/evals/base.py — Eval ABC
+
+     class Eval(ABC):
+         @abstractmethod
+         def __call__(
+             self,
+             graph: Graph,
+             predicted: np.ndarray,
+             target: np.ndarray,
+         ) -> float: ...
+         name: str
+
+     Single uniform signature; conductance ignores target, ARI ignores graph.
+     Keeps the runner's call site identical for every eval.
+
+     src/core/registry.py — Registries
+
+     Three module-level dicts (DATASETS, ALGORITHMS, EVALS) plus three
+     decorators:
+
+     @register_dataset("sbm")
+     class SBMDataset(Dataset): ...
+
+     The decorator stores the class under its registry name and sets cls.name = 
+     "sbm". The runner resolves config strings via DATASETS["sbm"](**params),
+     etc.
+
+     Registration is triggered by importing the package. To avoid each subclass
+     needing to be imported explicitly, src/data/__init__.py,
+     src/algorithms/__init__.py, and src/evals/__init__.py will import every
+     concrete module in their package (just _spectral for now; later they'll
+     import sbm.py, conductance.py, etc.). That single import-side-effect
+     pattern keeps configs decoupled from import order.
+
+     Config Format (configs/example.yaml)
+
+     name: sbm_spectral_baseline           # human label, copied into results
+     seed: 42
+
+     dataset:
+       type: sbm                            # registry key
+       params:                              # forwarded as **kwargs to the class
+         n: 200
+         k: 4
+         p_in: 0.3
+         p_out: 0.05
+
+     algorithm:
+       type: spectral
+       params:
+         embedding_dim: 4
+         row_normalize: true
+
+     evals:
+       - type: conductance
+       - type: ari
+
+     src/core/config.py parses this into a typed ExperimentConfig dataclass. No
+     concrete dataset/algorithm/eval is implemented in this PR, so the example
+     config references types that don't yet exist — it's a template, not a
+     runnable example. A second config, configs/_smoke.yaml, references three
+     trivial built-in stubs (a "trivial" dataset that returns a 4-node graph, an
+      "all_zeros" algorithm, and an "accuracy" eval) so the runner has something
+      to exercise end-to-end. The smoke stubs live alongside the base classes
+     (e.g. src/data/base.py adds a _TrivialDataset) and are explicitly marked as
+      test-only.
+
+     Experiment Runner (src/core/runner.py)
+
+     Pseudocode:
+
+     def run_experiment(config_path: Path) -> Path:
+         cfg = load_config(config_path)
+         rng_seed = cfg.seed
+
+         run_uuid = uuid.uuid4().hex
+         run_dir = Path("results") / run_uuid
+         run_dir.mkdir(parents=True)
+
+         dataset   = DATASETS[cfg.dataset.type](**cfg.dataset.params)
+         algorithm = ALGORITHMS[cfg.algorithm.type](**cfg.algorithm.params)
+         evals     = [EVALS[e.type](**e.params) for e in cfg.evals]
+
+         graph, target = dataset.load()
+         predicted = algorithm.fit_predict(graph, k=dataset.num_clusters)
+
+         scores = {ev.name: float(ev(graph, predicted, target)) for ev in evals}
+
+         write_results(run_dir, cfg, graph, predicted, target, scores)
+         return run_dir
+
+     Results layout (results/<uuid>/)
+
+     ┌─────────────────┬────────────────────────────────────────────────────────
+     ┐
+     │      File       │                        Contents
+     │
+     ├─────────────────┼────────────────────────────────────────────────────────
+     ┤
+     │ config.yaml     │ exact copy of the input config
+     │
+     ├─────────────────┼────────────────────────────────────────────────────────
+     ┤
+     │                 │ run_uuid, ISO timestamp, git SHA + dirty flag,
+     │
+     │ metadata.json   │ hostname, Python version, package versions (numpy,
+     │
+     │                 │ scipy, pyyaml, plus anything imported by the
+     │
+     │                 │ registered classes), CLI args
+     │
+     ├─────────────────┼────────────────────────────────────────────────────────
+     ┤
+     │ scores.json     │ {eval_name: float}
+     │
+     ├─────────────────┼────────────────────────────────────────────────────────
+     ┤
+     │                 │ predicted, target, plus an adjacency_sha256 so future
+     │
+     │ predictions.npz │ analysis can verify the graph identity without storing
+     │
+     │                 │  the full matrix
+     │
+     └─────────────────┴────────────────────────────────────────────────────────
+     ┘
+
+     Metadata capture lives in src/core/results.py; it shells out to git 
+     rev-parse HEAD and git status --porcelain (via subprocess.run) and is
+     tolerant of non-git environments.
+
+     Migration of Existing Code
+
+     core/spectral_embedding.py → src/algorithms/_spectral.py. The file's public
+      API (spectral_embedding, normalized_laplacian, SpectralEmbedding) stays
+     identical — only its location changes. The if __name__ == "__main__":
+     sanity-check block at the bottom is preserved so python -m 
+     src.algorithms._spectral still runs the two-clique check. Future
+     StandardSpectralClustering and CheegerSweepCut algorithms will from 
+     ._spectral import spectral_embedding. The old core/ directory is removed.
+
+     pyproject.toml
+
+     Minimal src-layout config: project name cs2252-graph-partitioning, Python ≥
+      3.10, dependencies numpy, scipy, pyyaml, networkx (we'll need it later for
+      Karate Club / Cora loading even though it isn't the canonical type),
+     setuptools build backend. Setting [tool.setuptools.packages.find] where = 
+     ["src"] exposes data, algorithms, evals, core as top-level importable
+     packages after pip install -e ..
+
+     ▎ Note on import paths: with src layout, from src.foo import … is the wrong
+     ▎  idiom — src/ is the package root, not a package itself. Imports will be 
+     ▎ from core.runner import …, from data.base import Dataset, etc. The plan's
+     ▎  earlier src.algorithms references are filesystem paths, not import 
+     ▎ paths.
+
+     Files To Create / Modify
+
+     New:
+     - pyproject.toml
+     - configs/example.yaml, configs/_smoke.yaml
+     - src/__init__.py (empty marker, not strictly needed but harmless)
+     - src/core/__init__.py, graph.py, registry.py, config.py, runner.py,
+     results.py
+     - src/data/__init__.py, base.py
+     - src/algorithms/__init__.py, base.py
+     - src/evals/__init__.py, base.py
+     - scripts/run.py (CLI: python scripts/run.py <config>)
+     - results/.gitkeep
+
+     Move:
+     - core/spectral_embedding.py → src/algorithms/_spectral.py (and delete the
+     old core/ directory)
+
+     Modify:
+     - .gitignore: append results/ and *.egg-info/
+
+     Verification
+
+     1. pip install -e . succeeds and exposes the core, data, algorithms, evals
+     packages.
+     2. python -m algorithms._spectral reproduces the original two-clique sanity
+      output (Bottom-3 eigenvalues: [0.0, 0.0048, 1.003], Fiedler ... 20 20) —
+     confirms the move didn't break the math.
+     3. python scripts/run.py configs/_smoke.yaml runs end-to-end against the
+     trivial stubs and writes results/<uuid>/{config.yaml, metadata.json, 
+     scores.json, predictions.npz}.
+     4. Inspect results/<uuid>/metadata.json and confirm git SHA, timestamp,
+     package versions, and run UUID are populated.
+     5. Importing a non-existent registry key (type: foo) raises a clear
+     KeyError with the available keys listed — verifies the registry surface is
+     friendly when more concrete subclasses get added later.
+
+     What this plan does not do (deferred to future PRs, intentionally):
+     SBM/LFR/Karate/Cora dataset implementations; standard spectral clustering
+     or Cheeger sweep-cut algorithm classes; conductance or ARI eval
+     implementations; results comparison/aggregation tooling across runs. Those
+     slot into the registries without touching the scaffolding.
+
+⏺ Plan approved. Starting implementation now in auto mode.
+
+⏺ Bash(mkdir -p /Users/yiding/Desktop/Research/2252/configs
+      /Users/yiding/Desktop/Research/2252/scripts
+      /Users/yiding/Desktop/Research/2252/results /Users/yiding/Deskt…)
+  ⎿  configs
+     core
+     docs
+     … +4 lines (ctrl+o to expand)
+
+⏺ Bash(git -C /Users/yiding/Desktop/Research/2252 mv core/spectral_embedding.py
+      src/algorithms/_spectral.py 2>&1 || mv
+      /Users/yiding/Desktop/Research/2252/core/spectra…)
+  ⎿  fatal: not under version control, source=core/spectral_embedding.py, d
+     estination=src/algorithms/_spectral.py
+     _spectral.py
+
+⏺ Bash(ls /Users/yiding/Desktop/Research/2252/core 2>&1; rmdir
+      /Users/yiding/Desktop/Research/2252/core 2>&1; ls
+      /Users/yiding/Desktop/Research/2252/)
+  ⎿  ls: /Users/yiding/Desktop/Research/2252/core: No such file or director
+     y
+     rmdir: /Users/yiding/Desktop/Research/2252/core: No such file or direc
+     … +7 lines (ctrl+o to expand)
+
+⏺ Now writing all the source files in parallel.
+
+⏺ Write(pyproject.toml)
+  ⎿  Wrote 18 lines to pyproject.toml
+       2 requires = ["setuptools>=68"]
+       3 build-backend = "setuptools.build_meta"
+       4 
+       5 [project]
+       6 name = "cs2252-graph-partitioning"
+       7 version = "0.0.1"
+       8 description = "Modular benchmark for graph partitioning algorith
+         ms (CS 2252 / NeurIPS 2026)."
+       9 requires-python = ">=3.10"
+      10 dependencies = [
+     … +9 lines (ctrl+o to expand)
+
+⏺ Write(src/__init__.py)
+  ⎿  Wrote 1 lines to src/__init__.py
+      1 (No content)
+
+⏺ Write(src/core/graph.py)
+  ⎿  Wrote 34 lines to src/core/graph.py
+      1 """Canonical graph representation passed between datasets, algori
+        thms, and evals."""
+      2 
+      3 from __future__ import annotations
+      4 
+      5 from dataclasses import dataclass, field
+      6 
+      7 import numpy as np
+      8 import scipy.sparse as sp
+      9 
+     … +29 lines (ctrl+o to expand)
+
+⏺ Write(src/core/registry.py)
+  ⎿  Wrote 46 lines to src/core/registry.py
+          and evals."""registries for plug-and-play datasets, algorithms,
+       2 
+       3 from __future__ import annotations
+       4 
+       5 from typing import Callable, TypeVar
+       6 
+       7 T = TypeVar("T")
+       8 
+       9 DATASETS: dict[str, type] = {}
+      10 ALGORITHMS: dict[str, type] = {}
+     … +40 lines (ctrl+o to expand)
+
+⏺ Write(src/data/base.py)  ⎿  Wrote 55 lines to src/data/base.py
+         moke tests."""tract base class plus a tiny trivial dataset for s
+       2 
+       3 from __future__ import annotations
+       4 
+       5 from abc import ABC, abstractmethod
+       6 
+       7 import numpy as np
+       8 import scipy.sparse as sp
+       9 
+      10 from core.graph import Graph
+     … +53 lines (ctrl+o to expand)
+
+⏺ Write(src/algorithms/base.py)
+  ⎿  Wrote 35 lines to src/algorithms/base.py
+          for smoke tests."""t base class plus a constant-prediction stub
+       2 
+       3 from __future__ import annotations
+       4 
+       5 from abc import ABC, abstractmethod
+       6 
+       7 import numpy as np
+       8 
+       9 from core.graph import Graph
+      10 from core.registry import register_algorithm
+     … +29 lines (ctrl+o to expand)
+
+⏺ Write(src/evals/base.py)
+  ⎿  Wrote 50 lines to src/evals/base.py
+          tests."""stract base class plus a label-accuracy stub for smoke
+       2 
+       3 from __future__ import annotations
+       4 
+       5 from abc import ABC, abstractmethod
+       6 
+       7 import numpy as np
+       8 
+       9 from core.graph import Graph
+      10 from core.registry import register_eval
+     … +46 lines (ctrl+o to expand)
+
+⏺ Write(src/core/__init__.py)
+  ⎿  Wrote 1 lines to src/core/__init__.py
+      1 (No content)
+
+⏺ Write(src/data/__init__.py)
+  ⎿  Wrote 3 lines to src/data/__init__.py
+      1 """Datasets package. Importing it side-effect-registers every con
+        crete dataset."""
+      2 
+      3 from data import base  # noqa: F401  -- registers _TrivialDataset
+
+⏺ Write(src/algorithms/__init__.py)
+  ⎿  Wrote 3 lines to src/algorithms/__init__.py
+      1 """Algorithms package. Importing it side-effect-registers every c
+        oncrete algorithm."""
+      2 
+      3 from algorithms import base  # noqa: F401  -- registers _AllZeros
+        Algorithm
+
+⏺ Write(src/evals/__init__.py)
+  ⎿  Wrote 3 lines to src/evals/__init__.py
+      1 """Evals package. Importing it side-effect-registers every concre
+        te eval."""
+      2 
+      3 from evals import base  # noqa: F401  -- registers _LabelAccuracy
+        Eval
+
+⏺ Write(src/core/config.py)
+  ⎿  Wrote 57 lines to src/core/config.py
+      1 """YAML config schema and loader for experiments."""
+      2 
+      3 from __future__ import annotations
+      4 
+      5 from dataclasses import dataclass, field
+      6 from pathlib import Path
+      7 from typing import Any
+      8 
+      9 import yaml
+     … +53 lines (ctrl+o to expand)
+
+⏺ Write(src/core/results.py)
+  ⎿  Wrote 119 lines to src/core/results.py
+         etadata."""single run's outputs into results/<uuid>/ with full m
+       2 
+       3 from __future__ import annotations
+       4 
+       5 import datetime as _dt
+       6 import hashlib
+       7 import importlib.metadata as _md
+       8 import json
+       9 import platform
+      10 import socket
+     … +112 lines (ctrl+o to expand)
+
+⏺ Write(src/core/runner.py)
+  ⎿  Wrote 65 lines to src/core/runner.py
+       2 """Experiment runner: YAML config in, results/<uuid>/ out."""
+       3 from __future__ import annotations
+       4 
+       5 import sys
+       6 import uuid
+       7 from pathlib import Path
+       8 
+       9 import data  # noqa: F401  -- side-effect: register all datasets
+      10 import algorithms  # noqa: F401  -- side-effect: register all al
+         gorithms
+     … +61 lines (ctrl+o to expand)
+
+⏺ Write(configs/example.yaml)
+  ⎿  Wrote 25 lines to configs/example.yaml
+         eferenced hereeriment config. The dataset/algorithm/eval types r
+       2 # are NOT yet implemented -- they are placeholders showing the s
+         chema for when
+         src/evals. subclasses are added under src/data, src/algorithms, 
+       4 # For an end-to-end runnable config, see configs/_smoke.yaml.
+       5 
+       7 seed: 42m_spectral_baseline
+       8 
+       9 dataset:
+      10   type: sbm
+     … +18 lines (ctrl+o to expand)
+
+⏺ Write(configs/_smoke.yaml)
+  ⎿  Wrote 17 lines to configs/_smoke.yaml
+          trivial stubsonfig: exercises the runner end-to-end against the
+       2 # bundled in src/{data,algorithms,evals}/base.py. Useful as a re
+         gression check;
+       3 # not a meaningful experiment.
+       4 
+       6 seed: 0moke_runner_check
+       7 
+       8 dataset:
+       9   type: trivial
+      10   params: {}
+     … +9 lines (ctrl+o to expand)
+
+⏺ Write(scripts/run.py)
+  ⎿  Wrote 40 lines to scripts/run.py
+       1 #!/usr/bin/env python3
+       2 """CLI entry point: python scripts/run.py <config.yaml>."""
+       3 
+       4 from __future__ import annotations
+       5 
+       6 import argparse
+       7 import sys
+       8 from pathlib import Path
+       9 
+      10 REPO_DIR = Path(__file__).resolve().parent.parent
+     … +33 lines (ctrl+o to expand)
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(.gitignore)
+  ⎿  Added 10 lines
+       6  *.log
+       7  *.out
+       8  *.synctex.gz
+       9 +                                                               
+      10 +# experiment outputs                                           
+      11 +results/*                                                      
+      12 +!results/.gitkeep                                              
+      13 +                                                               
+      14 +# build artifacts                                              
+      15 +*.egg-info/                                                    
+      16 +build/                                                         
+      17 +dist/                                                          
+      18 +.venv/                                                         
+
+⏺ Bash(python3 --version && python3 -c "import numpy, scipy, yaml;
+      print('numpy', numpy.__version__); print('scipy', scipy.__version__);
+      print('yaml ok')")
+  ⎿  Python 3.14.0
+     numpy 2.3.4
+     scipy 1.17.1
+     yaml ok
+
+⏺ Bash(PYTHONPATH=src python3 -m algorithms._spectral)
+  ⎿  Bottom-3 eigenvalues: [0.       0.004794 1.002632]
+     Fiedler vector sign split (cluster sizes): 20 20
+
+⏺ Spectral sanity check matches the original output exactly. Now running the
+  smoke config end-to-end.
+
+⏺ Bash(python3 scripts/run.py configs/_smoke.yaml)
+  ⎿  run complete: /Users/yiding/Desktop/Research/2252/results/c6aabbb936d3
+     4d12976f72f41fe433d3
+
+  Listed 1 directory (ctrl+o to expand)
+⏺ Verifying the friendly error message on an unknown registry key.
+
+⏺ Bash(PYTHONPATH=src python3 -c "
+      import data, algorithms, evals…)
+  ⎿  caught: "unknown registry key 'foo'; available: trivial"
+     available datasets: ['trivial']
+     available algorithms: ['all_zeros']
+     available evals: ['label_accuracy']
+
+⏺ Let me check the existing memory state and save anything useful for future
+  sessions.
+
+  Listed 3 directories (ctrl+o to expand)
+
+⏺ Skeleton is up and verified end-to-end. Summary:
+
+  What's in place:
+  - src/core/{graph,registry,config,results,runner}.py — Graph dataclass,
+  name-keyed registries with friendly errors, YAML schema, run-dir writer with
+  full metadata, and the orchestrator
+  - src/{data,algorithms,evals}/base.py — three ABCs, each with a tiny private
+  stub registered for smoke testing (trivial, all_zeros, label_accuracy)
+  - src/algorithms/_spectral.py — the existing spectral embedding moved
+  verbatim; sanity check still prints [0.0, 0.0048, 1.003] and 20/20 split
+  - configs/example.yaml (template referencing the future
+  SBM/spectral/conductance/ARI types) and configs/_smoke.yaml (runnable today)
+  - scripts/run.py CLI, pyproject.toml (src layout), updated .gitignore
+  - results/c6aabbb…/ from the smoke run, containing config.yaml, metadata.json
+  (git SHA, timestamp, host, package versions, graph SHA-256), scores.json,
+  predictions.npz
+
+  To add an SBM dataset, spectral algorithm, or conductance eval later: drop a
+  new module under src/{data,algorithms,evals}/, decorate the class with
+  @register_dataset("sbm") (or the matching decorator), and import it from that
+  package's __init__.py. Configs immediately pick it up by name — no runner
+  changes needed.
+
+  Note: I did not run pip install -e . since that would mutate your Python
+  environment; the CLI path-shims src/ onto sys.path so it works without
+  install. Run pip install -e . yourself in a venv when you want clean imports
+  from anywhere.
+
+✻ Cogitated for 5m 55s
+
+❯ Please write a CLAUDE.md file outlining the repo aim and structure.           
+
+⏺ Write(CLAUDE.md)
+  ⎿  Wrote 103 lines to CLAUDE.md
+      2 # CS 2252 — Graph Partitioning Benchmark
+      3 A modular research codebase for studying graph-partitioning algor
+        ithms. Backs a
+        `docs/main.tex`).oject / NeurIPS 2026 submission (paper draft in 
+      5 
+      6 ## Aim
+      8 Compare many algorithms across many datasets and metrics with as 
+        little
+      9 boilerplate as possible. The codebase is plug-and-play along thre
+        e axes:
+     … +138 lines (ctrl+o to expand)
+
+⏺ Wrote CLAUDE.md at the repo root covering the project aim, file-by-file
+  layout, how to run an experiment, the recipe for adding a new
+  dataset/algorithm/eval, conventions (Graph type, label arrays, eval signature,
+   import paths), and verification commands. Future Claude sessions will pick it
+   up automatically.
+
+✻ Brewed for 35s
+
+※ recap: Set up a modular graph-partitioning benchmark skeleton (dataset/algorithm/eval axes, YAML-driven runner writing to results/<uuid>) and added CLAUDE.md documenting it. Next: implement the first concrete components, e.g. an SBM dataset and standard spectral clustering algorithm. (disable recaps in /config)
