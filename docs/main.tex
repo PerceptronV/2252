@@ -1,0 +1,223 @@
+\documentclass{article}
+
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2026
+\PassOptionsToPackage{numbers,compress}{natbib}
+
+% The authors should use one of these tracks.
+% Before accepting by the NeurIPS conference, select one of the options below.
+% 0. "default" for submission
+% \usepackage{neurips_2026}
+% the "default" option is equal to the "main" option, which is used for the Main Track with double-blind reviewing.
+% 1. "main" option is used for the Main Track
+%  \usepackage[main]{neurips_2026}
+% 2. "position" option is used for the Position Paper Track
+%  \usepackage[position]{neurips_2026}
+% 3. "eandd" option is used for the Evaluations & Datasets Track
+ % \usepackage[eandd]{neurips_2026}
+ % if you need to opt-in for a single-blind submission in the E&D track:
+ %\usepackage[eandd, nonanonymous]{neurips_2026}
+% 4. "creativeai" option is used for the Creative AI Track
+%  \usepackage[creativeai]{neurips_2026}
+% 5. "sglblindworkshop" option is used for the Workshop with single-blind reviewing
+ % \usepackage[sglblindworkshop]{neurips_2026}
+% 6. "dblblindworkshop" option is used for the Workshop with double-blind reviewing
+%  \usepackage[dblblindworkshop]{neurips_2026}
+
+% After being accepted, the authors should add "final" behind the track to compile a camera-ready version.
+% 1. Main Track
+ \usepackage[preprint]{neurips_2026}
+% 2. Position Paper Track
+%  \usepackage[position, final]{neurips_2026}
+% 3. Evaluations & Datasets Track
+ % \usepackage[eandd, final]{neurips_2026}
+% 4. Creative AI Track
+%  \usepackage[creativeai, final]{neurips_2026}
+% 5. Workshop with single-blind reviewing
+%  \usepackage[sglblindworkshop, final]{neurips_2026}
+% 6. Workshop with double-blind reviewing
+%  \usepackage[dblblindworkshop, final]{neurips_2026}
+% Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote.
+% For workshops (5., 6.), the authors should add the name of the workshop, "\workshoptitle" command is used to set the workshop title.
+% \workshoptitle{WORKSHOP TITLE}
+
+% "preprint" option is used for arXiv or other preprint submissions
+ % \usepackage[preprint]{neurips_2026}
+
+% to avoid loading the natbib package, add option nonatbib:
+%    \usepackage[nonatbib]{neurips_2026}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+\usepackage{hyperref}
+
+% Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote. 
+\title{CS 2252 Course Project}
+
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to break the
+% lines. Using \AND forces a line break at that point. So, if LaTeX puts 3 of 4
+% authors names on the first line, and the last on the second line,2 try using
+% \AND instead of \And before the third author name.
+
+
+\author{%
+Aadit, Ishaan, Vincent, Hanming
+\\
+  % examples of more authors
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \AND
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+}
+
+
+\begin{document}
+
+
+\maketitle
+
+
+% \begin{abstract}
+% \end{abstract}
+
+\section{Idea 1 - Fleshed}
+
+Higher-order Cheeger inequalities show that the $k$-th eigenvalues of the graph Laplacian are closely related to the existence of good $k$-way partitions. While these theorems provide robust guarantees about the existence of $k$ low-conductance cuts, in practice, we often do not use these strict, computationally intensive methods to partition in the graph. Popular graph clusterings generally rely on spectrally embedding the graph and then applying a geometric clustering technique, like $k$-means.
+
+In this project, we aim to investigate the gap between these theoretical guarantees and geometric clustering in practice. Specifically, we will evaluate where theoretical cut-extraction algorithms and practical spectral clustering converge and diverge. Our focus will be to benchmark these algorithms against one another on the grounds of conductance, stability, and the recovery of meaningful graph partitions across both synthetic and real-world graph datasets.
+
+\section{Research Questions}
+To guide our exploration, we have defined the following primary research questions:
+\begin{enumerate}
+    \item \textbf{Conductance vs. Geometric Separation:} How do the structural cuts derived from theoretical algorithms like Fiedler's algorithm compare to partitions generated by spectral embedding plus $k$-means in terms of raw graph conductance?
+    \item \textbf{Robustness and Stability:} How do these two approaches perform under varying levels of noise? Does the geometric $k$-means step provide empirical robustness that the strict theoretical algorithms lack, or vice versa?
+    \item \textbf{Scalability vs. Optimality:} Do the theoretical guarantees justify the computational overhead on large-scale real-world datasets, or is the spectral clustering approach good enough of a trade-off between cut quality and execution time?
+\end{enumerate}
+
+\section{Related Work}
+Our project builds upon foundational tutorials and recent advancements in spectral clustering. Von Luxburg (2007) \cite{luxburg2007tutorial} provides the standard framework for practical spectral clustering, detailing the transition from graph Laplacians to Euclidean embeddings. However, bridging this practice to theory was significantly advanced by Peng et al. \cite{peng2015partitioning}, who rigorously demonstrated that spectral clustering works on well-clustered graphs, showing that $k$-means on the spectral embedding can indeed recover partitions that align with theoretical approximations. 
+
+More recently, work such as ``Fast and Simple Spectral Clustering in Theory and Practice'' \cite{bravo2023fast} explores optimized variants of these algorithms, providing a strong baseline for evaluating the tradeoffs.
+
+\section{Proposed Approach}
+Our methodology is divided into three main components: theoretical differences, algorithm implementation, dataset application.
+
+\subsection{Algorithms to Compare}
+\begin{itemize}
+    \item \textbf{Standard Spectral Clustering:} The classical approach computing the bottom $k$ eigenvectors of the normalized Laplacian, mapping nodes to $\mathbb{R}^k$, and applying $k$-means.
+    \item \textbf{Theoretical Cut Extraction:} Implementing a partition extraction algorithm modeled on the constructive proofs of higher-order Cheeger inequalities. In particular, we can implement a 2-way partitioning using the Cheeger sweep-cut, where nodes are sorted by entries of the Fiedler vector and the cut with lowest conductance is selected. This serves as our primary theoretical baseline, which should reflect the constructive proof we used for Cheeger's inequality.
+    \item \textbf{Fast Spectral Variants:} Implementing scalable variants as suggested by recent literature to observe modern baseline performance.
+\end{itemize}
+
+\subsection{Datasets and Workloads}
+\begin{itemize}
+    \item \textbf{Synthetic Data:} We will generate graphs using the Stochastic Block Model and the LFR benchmark graph generator model. This allows us to precisely control the degree distributions of the graphs, allowing us to test theoretical results on this.
+    
+    \item \textbf{Real-World Data:} We will focus on social graphs, such as from from the Stanford Network Analysis Project (SNAP) and citation networks, such as Cora.
+\end{itemize}
+
+\subsection{Evaluation Metrics}
+We will measure the quality of the partitions using Conductance and the Adjusted Rand Index (ARI) to evaluate recovery of synthetic datasets and runtimes. We can also experiment with measuring the variation of information across 20 random k-means trials.
+
+\section{Project Timeline}
+
+\begin{itemize}
+    \item \textbf{Week 1: } Finalize literature review. Set up the Python  codebase. Implement standard spectral clustering and data ingestion pipelines. Set up theoretical analysis on the algorithms.
+    \item \textbf{Week 2: } Implement the theoretical $k$-way cut extraction algorithms. Begin generating synthetic datasets (SBMs) and run initial sanity checks. Try to find any theoretical guarantees.
+    \item \textbf{Week 3: } Scale up experiments. Run both algorithm suites across synthetic and SNAP datasets. Record and analyze metrics.
+    \item \textbf{Week 4: } Run any final experiments that seem interesting given the results.. Draft project and identify regimes where theory and practice diverge. 
+\end{itemize}
+
+\section{Fallback Plan}
+If results show no meaningful divergence between methods, we will broaden the comparison to include non-k-means methods (e.g., direct sweep-cut rounding on each eigenvector, where instead of embedding nodes and running k-means, we sort nodes by each eigenvector's entries and sweep through possible cut thresholds to find the lowest-conductance partition directly).
+\begin{itemize}
+    \item \textbf{Algorithmic Fallback:} If the exact $k$-way theoretical extraction algorithm proves too computationally expensive, we will fall back to recursive 2-way spectral partitioning using the standard Cheeger sweep-cut as our theoretical baseline.
+    \item \textbf{Data Fallback:} If testing on massive real-world SNAP datasets causes memory/runtime bottlenecks, we will restrict our real-world evaluation to smaller subgraphs or purely rely on synthetically generated graphs.
+\end{itemize}
+
+
+\vspace{1em}
+\begin{thebibliography}{9}
+
+\bibitem{luxburg2007tutorial}
+U. von Luxburg.
+\textit{A Tutorial on Spectral Clustering}.
+Statistics and Computing, 17(4): 395-416, 2007.
+
+\bibitem{peng2015partitioning}
+R. Peng, H. Sun, and L. Zanetti.
+\textit{Partitioning Well-Clustered Graphs: Spectral Clustering Works!}
+Conference on Learning Theory (COLT), 2015. arXiv:1411.2021.
+
+\bibitem{bravo2023fast}
+G. Bravo Hermsdorff, et al.
+\textit{Fast and Simple Spectral Clustering in Theory and Practice}.
+arXiv preprint arXiv:2310.10939, 2023.
+
+\end{thebibliography}
+
+\appendix
+
+\newpage
+\section{Ideas}
+
+Higher-order Cheeger inequalities show that the $k$-th eigenvalues of the graph Laplacian are closely related to the existence of good $k$-way partitions. While we have theoretical guarantees about the existence of \(k\) low-conductance cuts, in practice we usually extract clusters through spectral embedding followed by k-means. In this project we wish to compare where these theoretical guarantees converge and diverge from geometric clustering. The focus would be to compare these algorithms on the grounds of conductance, stability, and recovery of meaningful graph partitions on synthetic and real-world graph workloads. We thought these papers are relevant starting points: 
+\begin{itemize}
+    \item \href{https://arxiv.org/abs/1411.2021}{Partitioning Well-Clustered Graphs: Spectral Clustering Works!}
+    \item \href{https://arxiv.org/abs/2310.10939}{Fast and Simple Spectral Clustering in Theory and Practice}
+    \item \href{https://is.mpg.de/publications/4488}{A Tutorial on Spectral Clustering (Luxburg, 2007)}
+\end{itemize}
+
+One idea is to work at the intersection of spectral graph theory and graph signal processing. Specifically, the goal would be to model the integer distribution of chips in the Abelian Sandpile Model as a discrete dynamic signal to rigorously analyze how different starting state all eventually resolve to recurrent "harmonic states". Using tools from spectral graph theory, harmonic analysis, and the Graph Jacobian, we aim to build mixing time bounds and learn more about the evolution of states before it reaches an equilbirum. We also hope to computationally verify these results on a variety of graphs. Starting points include this introduction: https://math.uchicago.edu/~may/REU2022/REUPapers/Zhong,Haolin.pdf and this paper:https://arxiv.org/pdf/1712.00468.
+
+
+
+In a similar vein to the Cheegers/K-means idea, we can study semi-supervised image classification via label propagation on nearest-neighbor graphs, and how the spectral properties of the graph Laplacian predict and control classification performance. Given an image dataset like MNIST, we construct a graph where each node is an image and edges connect each image to its k nearest neighbors in some feature space (eg. PCA coordinates), weighted by similarity. We then hide most labels, retain only a small number of labeled examples per class, and predict the missing labels via a method like harmonic extension (fixing labeled nodes to 0/1 values and solving for the assignment on unlabeled nodes that minimizes $x^\top Lx$). The project is primarily experimental with a theoretical component. On the theoretical side, we can explain why minimizing the Laplacian energy produces smooth label functions (eg. connecting to the eigenvector structure from Lecture 7) and explore whether Cheeger's inequalities reasoning can identify when label propagation should fail — specifically, when a low-conductance cut separates nodes of the same class, creating a bottleneck that prevents labels from propagating across it. On the experimental side, we can evaluate accuracy, runtime, and relate both to measurable spectral quantities (eg. $\lambda_2$, the spectral gap, and the number of near-zero eigenvalues) to understand when and why the method works or breaks down.
+
+One further idea, related to both neural networks and Cheeger's inequality, is to more accurately characterise the weight matrices of networks that generalise well. Previous work by Yunis et al (ICML 2024, \url{https://arxiv.org/abs/2408.11804}) has shown that when neural networks `grok' (suddenly generalise) on modular arithmetic tasks, their weight matrices simultaneously discover low-rank solutions. Meanwhile, the work of Nanda et al (ICLR 2023, \url{https://arxiv.org/abs/2301.05217}) demonstrated that algorithmically, generalising networks learn to represent the input via a small number of Fourier modes of the cyclic group $\mathbb{Z}_p$, with each mode having nonzero amplitude at every input token. (1) We show why the results of Yunis et al is to be expected based on Nanda et al's work: each active Fourier frequency contributes at most a rank-2 component to~$W$ (its sine and cosine parts), so a network using $|\mathcal{F}|$~frequencies has $\mathrm{rank}(W) \le 2|\mathcal{F}| \ll n$. (2) We conjecture that Nanda et al.'s work implies stronger structural properties about the weight matrix beyond low rank alone. The Fourier singular vectors have dense, overlapping support across all hidden dimensions, which should prevent the Gram matrix $A = W^\top W$ from fragmenting into disconnected clusters, suggesting that the conductance of~$A$, as bounded by Cheeger's inequality $\nu_2/2 \le \Phi(G) \le \sqrt{2\nu_2}$, would be a strictly more informative predictor of generalisation than rank, since two matrices with identical singular value spectra can have very different conductance depending on their singular vector structure. Making this precise requires overcoming the technical obstacle that $W^\top W$ can have negative entries, since Fourier modes take both signs. Empirically, we would (1) explicitly construct low-rank weight matrices that have low conductance, and test if these lead to memorisation instead of generalisation; and (2) evaluate our conductance measure of generalisation across a range of `grokking' tasks: modular arithmetic, sparse parity learning, and permutation group composition.
+
+\section*{References}
+
+
+\medskip
+
+
+{
+\small
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\appendix
+
+
+
+\end{document}

@@ -1,0 +1,17 @@
+# Smoke-test config: exercises the runner end-to-end against the trivial stubs
+# bundled in src/{data,algorithms,evals}/base.py. Useful as a regression check;
+# not a meaningful experiment.
+
+name: smoke_runner_check
+seed: 0
+
+dataset:
+  type: trivial
+  params: {}
+
+algorithm:
+  type: all_zeros
+  params: {}
+
+evals:
+  - type: label_accuracy

@@ -1,0 +1,25 @@
+# Template experiment config. The dataset/algorithm/eval types referenced here
+# are NOT yet implemented -- they are placeholders showing the schema for when
+# concrete subclasses are added under src/data, src/algorithms, src/evals.
+# For an end-to-end runnable config, see configs/_smoke.yaml.
+
+name: sbm_spectral_baseline
+seed: 42
+
+dataset:
+  type: sbm
+  params:
+    n: 200
+    k: 4
+    p_in: 0.3
+    p_out: 0.05
+
+algorithm:
+  type: spectral
+  params:
+    embedding_dim: 4
+    row_normalize: true
+
+evals:
+  - type: conductance
+  - type: ari
