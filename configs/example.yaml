@@ -18,7 +18,11 @@ algorithm:
   type: spectral
   params:
     embedding_dim: 4
-    row_normalize: true
+    normalization: auto
+    baseline: peng_kmeans
+    baseline_params:
+      n_init: 10
+      max_iter: 300
 
 evals:
   - type: conductance

@@ -8,6 +8,7 @@ T = TypeVar("T")
 
 DATASETS: dict[str, type] = {}
 ALGORITHMS: dict[str, type] = {}
+BASELINES: dict[str, type] = {}
 EVALS: dict[str, type] = {}
 
 
@@ -30,6 +31,10 @@ def register_dataset(name: str) -> Callable[[type[T]], type[T]]:
 
 def register_algorithm(name: str) -> Callable[[type[T]], type[T]]:
     return _register(ALGORITHMS, name)
+
+
+def register_baseline(name: str) -> Callable[[type[T]], type[T]]:
+    return _register(BASELINES, name)
 
 
 def register_eval(name: str) -> Callable[[type[T]], type[T]]:

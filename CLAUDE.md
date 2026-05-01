@@ -11,6 +11,8 @@ boilerplate as possible. The codebase is plug-and-play along three axes:
 - **Dataset** — a `(graph, target_partition)` source (SBM, LFR, Karate, Cora, …)
 - **Algorithm** — takes `(graph, k)` and returns predicted cluster labels
   (spectral clustering, Cheeger sweep cut, …)
+- **Baseline** — a graph-aware partition extractor over an embedding
+  (`k`-means, `peng_kmeans`, sweep-cut rounding, …)
 - **Eval** — takes `(graph, predicted, target)` and returns a scalar
   (conductance, ARI, …)
 
@@ -33,9 +35,13 @@ A single YAML config under `configs/` selects one dataset, one algorithm, and a
 │   │   ├── runner.py           #   orchestrator: config in, run_dir out
 │   │   └── results.py          #   writes config copy, metadata.json, scores.json, predictions.npz
 │   ├── data/base.py            #   Dataset ABC (+ _TrivialDataset stub)
+│   ├── baselines/
+│   │   ├── base.py             #   Baseline ABC (+ _AllZerosBaseline stub)
+│   │   └── kmeans.py           #   naive + Peng-style pure-NumPy k-means baselines
 │   ├── algorithms/
 │   │   ├── base.py             #   Algorithm ABC (+ _AllZerosAlgorithm stub)
-│   │   └── _spectral.py        #   bottom-k eigendecomp of L_sym, shared utility
+│   │   ├── _spectral.py        #   bottom-k eigendecomp of L_sym, shared utility
+│   │   └── spectral.py         #   spectral clustering + pluggable baseline
 │   └── evals/base.py           #   Eval ABC (+ _LabelAccuracyEval stub)
 ├── scripts/run.py              # CLI: python scripts/run.py configs/<name>.yaml
 ├── results/<run_uuid>/         # gitignored per-run output dirs
@@ -64,8 +70,8 @@ Each axis has the same recipe:
 
 1. Create `src/<axis>/<your_module>.py` with a class subclassing the ABC.
 2. Decorate it: `@register_dataset("sbm")` / `@register_algorithm("spectral")` /
-   `@register_eval("conductance")`. The decorator records the class under that
-   key and sets `cls.name`.
+   `@register_baseline("kmeans")` / `@register_eval("conductance")`. The
+   decorator records the class under that key and sets `cls.name`.
 3. Import the new module from `src/<axis>/__init__.py` so registration runs on
    package import.
 4. Reference it from a config: `type: <key>`, with `params:` forwarded as
@@ -86,6 +92,13 @@ through the registries. No runner changes are needed when new components land.
 - **Eval signature**: every `Eval.__call__(graph, predicted, target)` takes all
   three even if some are unused (conductance ignores `target`, ARI ignores
   `graph`). Keeps the runner uniform.
+- **Baseline signature**: every `Baseline.fit_predict(graph, embedding, k)`
+  receives both the graph and the spectral embedding so geometric clusterers
+  and graph-aware roundings can share one modular interface.
+- **Spectral normalization**: `algorithms.spectral` supports `normalization:
+  auto | unit_row | degree_sqrt | none`. `auto` picks `unit_row` for naive
+  `kmeans` and `degree_sqrt` for `peng_kmeans`, matching the Peng-Sun-Zanetti
+  embedding `F(u) = (f_1(u), ..., f_k(u)) / sqrt(d_u)`.
 - **Stubs**: classes prefixed with `_` (e.g. `_TrivialDataset`) exist only for
   smoke testing the runner. Do not extend them; add real components instead.
 - **Imports**: code under `src/` imports as `from core.X import …`,

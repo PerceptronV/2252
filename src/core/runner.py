@@ -8,6 +8,7 @@ from pathlib import Path
 
 import data  # noqa: F401  -- side-effect: register all datasets
 import algorithms  # noqa: F401  -- side-effect: register all algorithms
+import baselines  # noqa: F401  -- side-effect: register all baselines
 import evals as _evals_pkg  # noqa: F401  -- side-effect: register all evals
 
 from core.config import ExperimentConfig, load_config
