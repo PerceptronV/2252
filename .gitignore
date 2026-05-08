@@ -10,6 +10,7 @@ __pycache__/
 # experiment outputs
 results/*
 !results/.gitkeep
+datasets/sweep_generated/
 
 # build artifacts
 *.egg-info/

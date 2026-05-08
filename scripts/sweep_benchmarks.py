@@ -143,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
     dataset_paths: list[Path] = []
     for pattern in [part.strip() for part in args.datasets.split(",") if part.strip()]:
         dataset_paths.extend(sorted(REPO_DIR.glob(pattern)))
-    dataset_paths = sorted(dict.fromkeys(dataset_paths))
+    dataset_paths = list(dict.fromkeys(dataset_paths))
     if not dataset_paths:
         raise SystemExit("no dataset bundles matched the provided patterns")
 

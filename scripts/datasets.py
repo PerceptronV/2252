@@ -134,6 +134,7 @@ def generate_lfr(
     output: Path,
     average_degree: int | None,
     min_degree: int | None,
+    max_degree: int | None,
     min_community: int,
     max_iters: int,
     name: str | None,
@@ -153,6 +154,8 @@ def generate_lfr(
         lfr_kwargs["average_degree"] = average_degree
     if min_degree is not None:
         lfr_kwargs["min_degree"] = min_degree
+    if max_degree is not None:
+        lfr_kwargs["max_degree"] = max_degree
 
     graph_nx = nx.generators.community.LFR_benchmark_graph(**lfr_kwargs)
     communities = {
@@ -176,6 +179,7 @@ def generate_lfr(
         "seed": seed,
         "average_degree": average_degree,
         "min_degree": min_degree,
+        "max_degree": max_degree,
         "min_community": min_community,
         "max_iters": max_iters,
     }
@@ -193,11 +197,14 @@ def generate_ring_of_cliques(
     *,
     num_cliques: int,
     clique_size: int,
+    bridge_edges: int = 1,
     output: Path,
     name: str | None,
 ) -> Path:
     if num_cliques < 2 or clique_size < 2:
         raise ValueError("ring_of_cliques requires num_cliques >= 2 and clique_size >= 2")
+    if bridge_edges < 1:
+        raise ValueError(f"bridge_edges must be positive; got {bridge_edges}")
 
     num_nodes = num_cliques * clique_size
     rows: list[int] = []
@@ -216,11 +223,13 @@ def generate_ring_of_cliques(
                 rows.extend((u, v))
                 cols.extend((v, u))
 
-        bridge_u = int(nodes[-1])
         next_start = ((clique + 1) % num_cliques) * clique_size
-        bridge_v = int(next_start)
-        rows.extend((bridge_u, bridge_v))
-        cols.extend((bridge_v, bridge_u))
+        next_nodes = np.arange(next_start, next_start + clique_size, dtype=int)
+        for bridge in range(bridge_edges):
+            bridge_u = int(nodes[-1 - (bridge % clique_size)])
+            bridge_v = int(next_nodes[bridge % clique_size])
+            rows.extend((bridge_u, bridge_v))
+            cols.extend((bridge_v, bridge_u))
 
     data = np.ones(len(rows), dtype=float)
     adjacency = sp.csr_matrix((data, (rows, cols)), shape=(num_nodes, num_nodes))
@@ -229,6 +238,7 @@ def generate_ring_of_cliques(
         "kind": "ring_of_cliques",
         "num_cliques": num_cliques,
         "clique_size": clique_size,
+        "bridge_edges": bridge_edges,
     }
     return _save_bundle(
         output,
@@ -245,12 +255,17 @@ def generate_core_periphery_cliques(
     core_size: int,
     num_periphery: int,
     periphery_size: int,
+    attachments_per_periphery: int = 1,
     output: Path,
     name: str | None,
 ) -> Path:
     if core_size < 2 or num_periphery < 1 or periphery_size < 2:
         raise ValueError(
             "core_periphery_cliques requires core_size >= 2, num_periphery >= 1, and periphery_size >= 2"
+        )
+    if attachments_per_periphery < 1:
+        raise ValueError(
+            f"attachments_per_periphery must be positive; got {attachments_per_periphery}"
         )
 
     num_nodes = core_size + num_periphery * periphery_size
@@ -279,10 +294,11 @@ def generate_core_periphery_cliques(
                 rows.extend((u, v))
                 cols.extend((v, u))
 
-        anchor = int(core_nodes[block % core_size])
-        attachment = int(nodes[0])
-        rows.extend((anchor, attachment))
-        cols.extend((attachment, anchor))
+        for attachment_idx in range(attachments_per_periphery):
+            anchor = int(core_nodes[(block + attachment_idx) % core_size])
+            attachment = int(nodes[attachment_idx % periphery_size])
+            rows.extend((anchor, attachment))
+            cols.extend((attachment, anchor))
 
     data = np.ones(len(rows), dtype=float)
     adjacency = sp.csr_matrix((data, (rows, cols)), shape=(num_nodes, num_nodes))
@@ -292,12 +308,146 @@ def generate_core_periphery_cliques(
         "core_size": core_size,
         "num_periphery": num_periphery,
         "periphery_size": periphery_size,
+        "attachments_per_periphery": attachments_per_periphery,
     }
     return _save_bundle(
         output,
         adjacency=adjacency,
         target=labels,
         num_clusters=num_periphery + 1,
+        name=name or output.stem,
+        metadata=metadata,
+    )
+
+
+def generate_disconnected_cliques(
+    *,
+    sizes: list[int],
+    bridge_edges: int,
+    output: Path,
+    name: str | None,
+) -> Path:
+    if len(sizes) < 2 or any(size < 2 for size in sizes):
+        raise ValueError("disconnected_cliques requires at least two clique sizes, all >= 2")
+    if bridge_edges < 0:
+        raise ValueError(f"bridge_edges must be non-negative; got {bridge_edges}")
+
+    num_nodes = sum(sizes)
+    labels = np.empty(num_nodes, dtype=int)
+    rows: list[int] = []
+    cols: list[int] = []
+    starts = np.cumsum([0] + sizes[:-1])
+
+    for cluster_id, (start, size) in enumerate(zip(starts, sizes)):
+        nodes = np.arange(start, start + size, dtype=int)
+        labels[nodes] = cluster_id
+        for i in range(size):
+            for j in range(i + 1, size):
+                u = int(nodes[i])
+                v = int(nodes[j])
+                rows.extend((u, v))
+                cols.extend((v, u))
+
+    for cluster_id in range(len(sizes) - 1):
+        left_start = int(starts[cluster_id])
+        right_start = int(starts[cluster_id + 1])
+        left_size = sizes[cluster_id]
+        right_size = sizes[cluster_id + 1]
+        for bridge in range(bridge_edges):
+            u = left_start + left_size - 1 - (bridge % left_size)
+            v = right_start + (bridge % right_size)
+            rows.extend((u, v))
+            cols.extend((v, u))
+
+    data = np.ones(len(rows), dtype=float)
+    adjacency = sp.csr_matrix((data, (rows, cols)), shape=(num_nodes, num_nodes))
+    adjacency = _normalize_csr(adjacency)
+    metadata = {
+        "kind": "disconnected_cliques" if bridge_edges == 0 else "nearly_disconnected_cliques",
+        "sizes": sizes,
+        "bridge_edges": bridge_edges,
+    }
+    return _save_bundle(
+        output,
+        adjacency=adjacency,
+        target=labels,
+        num_clusters=len(sizes),
+        name=name or output.stem,
+        metadata=metadata,
+    )
+
+
+def generate_sbm_with_leaves(
+    *,
+    sizes: list[int],
+    p_in: float,
+    p_out: float,
+    leaves_per_block: int,
+    isolated: int,
+    seed: int,
+    output: Path,
+    name: str | None,
+) -> Path:
+    if leaves_per_block < 0 or isolated < 0:
+        raise ValueError("leaves_per_block and isolated must be non-negative")
+
+    rng = np.random.default_rng(seed)
+    base_n = sum(sizes)
+    base_output = output.with_suffix(".base.tmp.npz")
+    generate_sbm(
+        sizes=sizes,
+        p_in=p_in,
+        p_out=p_out,
+        seed=seed,
+        output=base_output,
+        name=name,
+    )
+    with np.load(base_output, allow_pickle=False) as data:
+        base_adjacency = sp.csr_matrix(
+            (data["adjacency_data"], data["adjacency_indices"], data["adjacency_indptr"]),
+            shape=tuple(data["adjacency_shape"]),
+        )
+        base_target = np.asarray(data["target"], dtype=int)
+    base_output.unlink(missing_ok=True)
+
+    total_leaves = leaves_per_block * len(sizes)
+    num_nodes = base_n + total_leaves + isolated
+    rows = base_adjacency.tocoo().row.tolist()
+    cols = base_adjacency.tocoo().col.tolist()
+    labels = np.concatenate(
+        [
+            base_target,
+            np.repeat(np.arange(len(sizes), dtype=int), leaves_per_block),
+            np.full(isolated, len(sizes), dtype=int),
+        ]
+    )
+
+    starts = np.cumsum([0] + sizes[:-1])
+    leaf_node = base_n
+    for cluster_id, (start, size) in enumerate(zip(starts, sizes)):
+        for _ in range(leaves_per_block):
+            anchor = int(start + rng.integers(size))
+            rows.extend((leaf_node, anchor))
+            cols.extend((anchor, leaf_node))
+            leaf_node += 1
+
+    data = np.ones(len(rows), dtype=float)
+    adjacency = sp.csr_matrix((data, (rows, cols)), shape=(num_nodes, num_nodes))
+    adjacency = _normalize_csr(adjacency)
+    metadata = {
+        "kind": "sbm_with_leaves_and_isolates",
+        "sizes": sizes,
+        "p_in": p_in,
+        "p_out": p_out,
+        "leaves_per_block": leaves_per_block,
+        "isolated": isolated,
+        "seed": seed,
+    }
+    return _save_bundle(
+        output,
+        adjacency=adjacency,
+        target=labels,
+        num_clusters=len(sizes) + (1 if isolated else 0),
         name=name or output.stem,
         metadata=metadata,
     )
@@ -321,6 +471,34 @@ def import_builtin_social_graph(
             "kind": "builtin_social",
             "source": source,
             "label_source": "club",
+        }
+    elif source == "davis_southern_women":
+        graph_nx = nx.davis_southern_women_graph()
+        nodes = sorted(graph_nx.nodes(), key=str)
+        labels = np.array(
+            [0 if graph_nx.nodes[node]["bipartite"] == 0 else 1 for node in nodes],
+            dtype=int,
+        )
+        num_clusters = 2
+        metadata = {
+            "kind": "builtin_social",
+            "source": source,
+            "label_source": "bipartite_node_type",
+        }
+    elif source == "les_miserables":
+        graph_nx = nx.les_miserables_graph()
+        nodes = sorted(graph_nx.nodes(), key=str)
+        communities = nx.community.greedy_modularity_communities(graph_nx)
+        node_to_label: dict[str, int] = {}
+        for cluster_id, community in enumerate(communities):
+            for node in community:
+                node_to_label[str(node)] = cluster_id
+        labels = np.array([node_to_label[str(node)] for node in nodes], dtype=int)
+        num_clusters = len(communities)
+        metadata = {
+            "kind": "builtin_social",
+            "source": source,
+            "label_source": "greedy_modularity_reference",
         }
     else:
         raise ValueError(f"unsupported builtin social graph source: {source!r}")
@@ -467,6 +645,7 @@ def build_parser() -> argparse.ArgumentParser:
     lfr.add_argument("--seed", type=int, default=0)
     lfr.add_argument("--average-degree", type=int)
     lfr.add_argument("--min-degree", type=int)
+    lfr.add_argument("--max-degree", type=int)
     lfr.add_argument("--min-community", type=int, default=10)
     lfr.add_argument("--max-iters", type=int, default=500)
     lfr.add_argument("--output", type=Path, required=True)
@@ -478,6 +657,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ring.add_argument("--num-cliques", type=int, required=True)
     ring.add_argument("--clique-size", type=int, required=True)
+    ring.add_argument("--bridge-edges", type=int, default=1)
     ring.add_argument("--output", type=Path, required=True)
     ring.add_argument("--name")
 
@@ -488,14 +668,41 @@ def build_parser() -> argparse.ArgumentParser:
     corep.add_argument("--core-size", type=int, required=True)
     corep.add_argument("--num-periphery", type=int, required=True)
     corep.add_argument("--periphery-size", type=int, required=True)
+    corep.add_argument("--attachments-per-periphery", type=int, default=1)
     corep.add_argument("--output", type=Path, required=True)
     corep.add_argument("--name")
+
+    disconnected = subparsers.add_parser(
+        "disconnected_cliques",
+        help="generate disconnected or nearly disconnected clique components",
+    )
+    disconnected.add_argument("--sizes", required=True, help="comma-separated clique sizes")
+    disconnected.add_argument("--bridge-edges", type=int, default=0)
+    disconnected.add_argument("--output", type=Path, required=True)
+    disconnected.add_argument("--name")
+
+    leaves = subparsers.add_parser(
+        "sbm_with_leaves",
+        help="generate an SBM with pendant leaves and optional isolated vertices",
+    )
+    leaves.add_argument("--sizes", required=True, help="comma-separated block sizes")
+    leaves.add_argument("--p-in", type=float, required=True)
+    leaves.add_argument("--p-out", type=float, required=True)
+    leaves.add_argument("--leaves-per-block", type=int, default=1)
+    leaves.add_argument("--isolated", type=int, default=0)
+    leaves.add_argument("--seed", type=int, default=0)
+    leaves.add_argument("--output", type=Path, required=True)
+    leaves.add_argument("--name")
 
     social = subparsers.add_parser(
         "social",
         help="import a builtin social graph with labels when available",
     )
-    social.add_argument("--source", choices=["karate_club"], required=True)
+    social.add_argument(
+        "--source",
+        choices=["karate_club", "davis_southern_women", "les_miserables"],
+        required=True,
+    )
     social.add_argument("--output", type=Path, required=True)
     social.add_argument("--name")
 
@@ -538,6 +745,7 @@ def main(argv: list[str] | None = None) -> int:
             output=args.output,
             average_degree=args.average_degree,
             min_degree=args.min_degree,
+            max_degree=args.max_degree,
             min_community=args.min_community,
             max_iters=args.max_iters,
             name=args.name,
@@ -552,6 +760,7 @@ def main(argv: list[str] | None = None) -> int:
         output = generate_ring_of_cliques(
             num_cliques=args.num_cliques,
             clique_size=args.clique_size,
+            bridge_edges=args.bridge_edges,
             output=args.output,
             name=args.name,
         )
@@ -560,6 +769,27 @@ def main(argv: list[str] | None = None) -> int:
             core_size=args.core_size,
             num_periphery=args.num_periphery,
             periphery_size=args.periphery_size,
+            attachments_per_periphery=args.attachments_per_periphery,
+            output=args.output,
+            name=args.name,
+        )
+    elif args.command == "disconnected_cliques":
+        sizes = [int(part.strip()) for part in args.sizes.split(",") if part.strip()]
+        output = generate_disconnected_cliques(
+            sizes=sizes,
+            bridge_edges=args.bridge_edges,
+            output=args.output,
+            name=args.name,
+        )
+    elif args.command == "sbm_with_leaves":
+        sizes = [int(part.strip()) for part in args.sizes.split(",") if part.strip()]
+        output = generate_sbm_with_leaves(
+            sizes=sizes,
+            p_in=args.p_in,
+            p_out=args.p_out,
+            leaves_per_block=args.leaves_per_block,
+            isolated=args.isolated,
+            seed=args.seed,
             output=args.output,
             name=args.name,
         )
