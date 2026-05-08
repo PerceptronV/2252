@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import sys
+import time
 import uuid
 from pathlib import Path
 
 import data  # noqa: F401  -- side-effect: register all datasets
 import algorithms  # noqa: F401  -- side-effect: register all algorithms
-import baselines  # noqa: F401  -- side-effect: register all baselines
 import evals as _evals_pkg  # noqa: F401  -- side-effect: register all evals
 
 from core.config import ExperimentConfig, load_config
@@ -40,7 +40,9 @@ def run_experiment(
     eval_objs = [cls(**spec.params) for cls, spec in zip(eval_clses, cfg.evals)]
 
     graph, target = dataset.load()
+    start_time = time.perf_counter()
     predicted = algorithm.fit_predict(graph, k=dataset.num_clusters)
+    algorithm_runtime_seconds = time.perf_counter() - start_time
 
     scores: dict[str, float] = {}
     for ev in eval_objs:
@@ -57,6 +59,7 @@ def run_experiment(
         scores=scores,
         repo_dir=Path(repo_dir) if repo_dir else config_path.resolve().parent,
         cli_args=cli_args if cli_args is not None else sys.argv,
+        algorithm_runtime_seconds=algorithm_runtime_seconds,
     )
 
     return run_dir

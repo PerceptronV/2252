@@ -1,4 +1,4 @@
-"""Spectral clustering algorithm with pluggable post-embedding baselines."""
+"""Spectral clustering algorithm with pluggable post-embedding clusterers."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ import numpy as np
 
 from algorithms._spectral import spectral_embedding
 from algorithms.base import Algorithm
-import baselines  # noqa: F401  -- side-effect: register all baselines
 from core.graph import Graph
 from core.registry import BASELINES, register_algorithm, resolve
 
@@ -51,7 +50,7 @@ def _resolve_normalization(normalization: str, baseline: str) -> str:
 
 @register_algorithm("spectral")
 class SpectralClusteringAlgorithm(Algorithm):
-    """Bottom-k eigenspace followed by a configurable baseline partitioner."""
+    """Bottom-k eigenspace followed by a configurable partitioner."""
 
     def __init__(
         self,

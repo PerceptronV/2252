@@ -80,6 +80,7 @@ def write_results(
     scores: dict[str, float],
     repo_dir: Path,
     cli_args: list[str],
+    algorithm_runtime_seconds: float,
 ) -> None:
     """Persist everything needed to interpret and reproduce a run."""
 
@@ -97,6 +98,7 @@ def write_results(
         "python_version": sys.version,
         "platform": platform.platform(),
         "package_versions": _package_versions(),
+        "algorithm_runtime_seconds": algorithm_runtime_seconds,
         "graph": {
             "name": graph.name,
             "num_nodes": graph.num_nodes,

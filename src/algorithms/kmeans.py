@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from baselines.base import Baseline
+from algorithms.baseline import Baseline
 from core.graph import Graph
 from core.registry import register_baseline
 
