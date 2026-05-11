@@ -31,14 +31,17 @@ generate_dataset "sbm imbalance 400_800" "$(dataset_path "${SIZE}" "sbm_imbalanc
 generate_dataset "sbm imbalance 300_600_1200" "$(dataset_path "${SIZE}" "sbm_imbalance_300_600_1200")" sbm --sizes 300,600,1200 --p-in 0.06 --p-out 0.01 --seed 1
 
 # LFR mixing sweep.
+# NetworkX's LFR generator is brittle at n=2000 with low mu and a very high
+# max degree; n=1500 keeps this in the large-graph regime while avoiding
+# repeated ExceededMaxIterations failures during prep.
 for mu in 05 10 20 30 40; do
   mu_value="0.${mu}"
-  generate_dataset "lfr mixing mu=${mu_value}" "$(dataset_path "${SIZE}" "lfr_n2000_mu${mu}")" lfr --n 2000 --tau1 3.0 --tau2 1.5 --mu "${mu_value}" --average-degree 12 --max-degree 180 --min-community 40 --seed 2 --max-iters 3000
+  generate_dataset "lfr mixing mu=${mu_value}" "$(dataset_path "${SIZE}" "lfr_n1500_mu${mu}")" lfr --n 1500 --tau1 3.0 --tau2 1.5 --mu "${mu_value}" --average-degree 12 --max-degree 120 --min-community 50 --seed 2 --max-iters 3000
 done
 
 # LFR degree heterogeneity.
-generate_dataset "lfr heterogeneity flatter" "$(dataset_path "${SIZE}" "lfr_n2000_tau25_max260")" lfr --n 2000 --tau1 2.5 --tau2 1.5 --mu 0.20 --average-degree 12 --max-degree 260 --min-community 40 --seed 3 --max-iters 3000
-generate_dataset "lfr heterogeneity steeper" "$(dataset_path "${SIZE}" "lfr_n2000_tau35_max100")" lfr --n 2000 --tau1 3.5 --tau2 1.5 --mu 0.20 --average-degree 12 --max-degree 100 --min-community 40 --seed 3 --max-iters 3000
+generate_dataset "lfr heterogeneity flatter" "$(dataset_path "${SIZE}" "lfr_n1500_tau25_max180")" lfr --n 1500 --tau1 2.5 --tau2 1.5 --mu 0.20 --average-degree 12 --max-degree 180 --min-community 50 --seed 3 --max-iters 3000
+generate_dataset "lfr heterogeneity steeper" "$(dataset_path "${SIZE}" "lfr_n1500_tau35_max80")" lfr --n 1500 --tau1 3.5 --tau2 1.5 --mu 0.20 --average-degree 12 --max-degree 80 --min-community 50 --seed 3 --max-iters 3000
 
 # Ring of cliques scale and noisy bridges.
 generate_dataset "ring cliques 50x40 bridge1" "$(dataset_path "${SIZE}" "ring_50x40_b1")" ring_of_cliques --num-cliques 50 --clique-size 40 --bridge-edges 1

@@ -12,6 +12,7 @@ dependencies = [
     "scipy>=1.11",
     "pyyaml>=6.0",
     "networkx>=3.0",
+    "matplotlib>=3.8",
 ]
 
 [tool.setuptools.packages.find]

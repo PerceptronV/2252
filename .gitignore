@@ -17,3 +17,4 @@ datasets/sweep_generated/
 build/
 dist/
 .venv/
+.matplotlib-cache/
